@@ -1,0 +1,110 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUser(data) {
+      return data.email is string && data.email.size() <= 256 &&
+             data.role in ['client', 'admin'] &&
+             (data.displayName == null || (data.displayName is string && data.displayName.size() <= 128));
+    }
+
+    function isValidService(data) {
+      return data.name is string && data.name.size() <= 128 &&
+             data.duration is int && data.duration > 0 &&
+             data.price is number && data.price >= 0;
+    }
+
+    function isValidBooking(data) {
+      return data.userId == request.auth.uid &&
+             data.serviceId is string &&
+             data.timestamp is string && // Simplified for now, best is timestamp type but payload sends string
+             data.status in ['pending', 'confirmed', 'cancelled'] &&
+             data.createdAt == request.time;
+    }
+
+    function isValidQuestion(data) {
+      return data.userId == request.auth.uid &&
+             data.text is string && data.text.size() <= 1000 &&
+             data.status in ['pending', 'answered'] &&
+             data.createdAt == request.time;
+    }
+
+    // --- Collections ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().role == 'client';
+      allow update: if (isOwner(userId) && isValidUser(incoming()) && incoming().role == existing().role) || isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow get: if isOwner(existing().userId) || isAdmin();
+      allow list: if isOwner(request.auth.uid) || isAdmin();
+      allow create: if isSignedIn() && isEmailVerified() && isValidBooking(incoming()) && 
+                    exists(/databases/$(database)/documents/services/$(incoming().serviceId));
+      allow update: if isSignedIn() && (
+        (isOwner(existing().userId) && incoming().userId == existing().userId && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) && 
+         incoming().status == 'cancelled' && incoming().updatedAt == request.time) ||
+        isAdmin()
+      );
+    }
+
+    match /schedule_config/{configId} {
+      allow read: if true; // Clients need to know when appointments are possible
+      allow write: if isAdmin();
+    }
+
+    match /questions/{questionId} {
+      allow get: if isOwner(existing().userId) || isAdmin();
+      allow list: if isOwner(request.auth.uid) || isAdmin();
+      allow create: if isSignedIn() && isValidQuestion(incoming());
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['answer', 'status', 'isAiAnswer']);
+    }
+  }
+}

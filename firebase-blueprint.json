@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "Service": {
+      "title": "Service",
+      "description": "A type of x-ray or diagnostic procedure",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "duration": { "type": "integer", "description": "Duration in minutes" },
+        "price": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "duration", "price"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A client's appointment for a specific service",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "clientName": { "type": "string" },
+        "clientEmail": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "serviceId", "timestamp", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile information and role",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["client", "admin"] },
+        "displayName": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    },
+    "ScheduleConfig": {
+      "title": "ScheduleConfig",
+      "description": "Configuration for available working hours",
+      "type": "object",
+      "properties": {
+        "dayOfWeek": { "type": "integer", "description": "0 (Sun) to 6 (Sat)" },
+        "startTime": { "type": "string", "description": "HH:mm" },
+        "endTime": { "type": "string", "description": "HH:mm" },
+        "slotDuration": { "type": "integer", "description": "Slot duration in minutes" }
+      },
+      "required": ["dayOfWeek", "startTime", "endTime", "slotDuration"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "A question asked by a client and answered by staff or AI",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "answer": { "type": "string" },
+        "isAiAnswer": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["pending", "answered"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "text", "status"]
+    }
+  },
+  "firestore": {
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Available diagnostic services"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Appointment records"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/schedule_config/{configId}": {
+      "schema": "ScheduleConfig",
+      "description": "Working hours settings"
+    },
+    "/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Client questions and answers"
+    }
+  }
+}

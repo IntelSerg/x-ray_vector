@@ -1,0 +1,6 @@
+{
+  "name": "X-Ray Booking System",
+  "description": "Система самостоятельной записи клиентов на рентгенологические исследования с панелью управления для сотрудников.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
