@@ -6,9 +6,20 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "order": { "type": "integer" },
         "duration": { "type": "integer", "description": "Duration in minutes" },
         "price": { "type": "number" },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "checkboxes": { 
+          "type": "array", 
+          "items": { 
+            "type": "object", 
+            "properties": {
+              "label": { "type": "string" },
+              "explanation": { "type": "string" }
+            }
+          } 
+        }
       },
       "required": ["name", "duration", "price"]
     },
@@ -23,6 +34,7 @@
         "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
         "clientName": { "type": "string" },
         "clientEmail": { "type": "string" },
+        "selectedOptions": { "type": "array", "items": { "type": "string" } },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

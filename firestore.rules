@@ -73,7 +73,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().role == 'client';
+      // Allow user to create their own profile. Admin is allowed if email matches the hardcoded owner.
+      allow create: if isOwner(userId) && isValidUser(incoming()) && 
+                    (incoming().role == 'client' || (incoming().role == 'admin' && incoming().email == 'intelserg002@gmail.com'));
       allow update: if (isOwner(userId) && isValidUser(incoming()) && incoming().role == existing().role) || isAdmin();
     }
 
@@ -83,9 +85,9 @@ service cloud.firestore {
     }
 
     match /bookings/{bookingId} {
-      allow get: if isOwner(existing().userId) || isAdmin();
-      allow list: if isOwner(request.auth.uid) || isAdmin();
-      allow create: if isSignedIn() && isEmailVerified() && isValidBooking(incoming()) && 
+      allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if isSignedIn() && isValidBooking(incoming()) && 
                     exists(/databases/$(database)/documents/services/$(incoming().serviceId));
       allow update: if isSignedIn() && (
         (isOwner(existing().userId) && incoming().userId == existing().userId && 
@@ -96,13 +98,13 @@ service cloud.firestore {
     }
 
     match /schedule_config/{configId} {
-      allow read: if true; // Clients need to know when appointments are possible
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /questions/{questionId} {
-      allow get: if isOwner(existing().userId) || isAdmin();
-      allow list: if isOwner(request.auth.uid) || isAdmin();
+      allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow create: if isSignedIn() && isValidQuestion(incoming());
       allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['answer', 'status', 'isAiAnswer']);
     }

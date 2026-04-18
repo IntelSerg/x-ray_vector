@@ -11,9 +11,11 @@ import { askGemini } from '../lib/gemini';
 interface Service {
   id: string;
   name: string;
+  order?: number;
   duration: number;
   price: number;
   description: string;
+  checkboxes?: { label: string; explanation: string }[];
 }
 
 interface Booking {
@@ -29,6 +31,8 @@ export function ClientView() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [notes, setNotes] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -38,7 +42,7 @@ export function ClientView() {
 
   useEffect(() => {
     const fetchServices = async () => {
-      const q = query(collection(db, 'services'));
+      const q = query(collection(db, 'services'), orderBy('order', 'asc'));
       const snapshot = await getDocs(q);
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service));
       setServices(list);
@@ -65,6 +69,8 @@ export function ClientView() {
         serviceId: selectedService.id,
         serviceName: selectedService.name,
         timestamp: selectedSlot,
+        selectedOptions,
+        notes,
         clientName: user.displayName,
         clientEmail: user.email,
         status: 'pending',
@@ -84,8 +90,13 @@ export function ClientView() {
     if (!question.trim()) return;
     const q = question;
     setQuestion('');
+    setQaHistory(prev => [...prev, { q, a: "Обдумываю..." }]);
     const answer = await askGemini(q);
-    setQaHistory(prev => [...prev, { q, a: answer }]);
+    setQaHistory(prev => {
+      const history = [...prev];
+      history[history.length - 1].a = answer;
+      return history;
+    });
     
     // Also save to DB for admin to see
     if (user) {
@@ -180,11 +191,11 @@ export function ClientView() {
                 {services.map(s => (
                   <button
                     key={s.id}
-                    onClick={() => { setSelectedService(s); setStep(2); }}
+                    onClick={() => { setSelectedService(s); setStep(2); setSelectedOptions([]); }}
                     className="flex flex-col text-left p-6 rounded-2xl border-2 border-slate-50 hover:border-blue-500 hover:shadow-lg transition-all group"
                   >
                     <span className="font-bold text-lg group-hover:text-blue-600 transition-colors">{s.name}</span>
-                    <span className="text-slate-500 text-sm mt-2 line-clamp-2">{s.description}</span>
+                    <span className="text-slate-500 text-sm mt-2">{s.description}</span>
                     <div className="mt-4 flex justify-between items-center w-full">
                       <span className="text-blue-600 font-bold">{s.price} ₽</span>
                       <span className="text-slate-400 text-xs">{s.duration} мин</span>
@@ -236,6 +247,34 @@ export function ClientView() {
                 ))}
               </div>
 
+              {selectedService.checkboxes && selectedService.checkboxes.length > 0 && (
+                <div className="mt-12 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <CheckCircle2 size={20} className="text-blue-600" />
+                    Дополнительная информация для {selectedService.name}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {selectedService.checkboxes.map((cb, idx) => (
+                      <label key={idx} className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedOptions.includes(cb.label)}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedOptions([...selectedOptions, cb.label]);
+                            else setSelectedOptions(selectedOptions.filter(o => o !== cb.label));
+                          }}
+                          className="mt-1 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-700">{cb.label}</span>
+                          <span className="text-xs text-slate-500 leading-tight">{cb.explanation}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-12 flex justify-end">
                 <button
                   disabled={!selectedSlot}
@@ -271,6 +310,16 @@ export function ClientView() {
                 </div>
               </div>
 
+              <div className="mt-8">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">Примечание (напр. номера зубов)</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Введите дополнительную информацию..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 min-h-[80px] text-sm"
+                />
+              </div>
+
               <div className="mt-10 flex flex-col gap-4">
                 <button
                   onClick={handleBooking}
@@ -298,7 +347,13 @@ export function ClientView() {
                 Мы пришлем напоминание в день обследования. Вы всегда можете просмотреть свои записи ниже.
               </p>
               <button
-                onClick={() => { setStep(1); setSelectedService(null); setSelectedSlot(null); }}
+                onClick={() => { 
+                  setStep(1); 
+                  setSelectedService(null); 
+                  setSelectedSlot(null); 
+                  setNotes('');
+                  setSelectedOptions([]);
+                }}
                 className="text-blue-600 font-bold hover:underline"
               >
                 Вернуться к началу

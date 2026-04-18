@@ -19,8 +19,11 @@ interface Booking {
 interface Service {
   id: string;
   name: string;
+  order?: number;
   duration: number;
   price: number;
+  description?: string;
+  checkboxes?: { label: string; explanation: string }[];
 }
 
 export function AdminView() {
@@ -32,6 +35,71 @@ export function AdminView() {
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState('20');
+  const [newServiceDescription, setNewServiceDescription] = useState('');
+
+  const seedServices = async () => {
+    const list = [
+      {
+        name: "КТ 5х5",
+        order: 1,
+        description: "Область 3-5 рядом стоящих зубов. Пожалуйста, укажите номера зубов в примечании.",
+        price: 2500,
+        duration: 20
+      },
+      {
+        name: "КТ 8х5",
+        order: 2,
+        description: "Область 8 рядом стоящих зубов. Пожалуйста, укажите номера зубов в примечании.",
+        price: 3500,
+        duration: 20
+      },
+      {
+        name: "КТ 16х8",
+        order: 3,
+        description: "КТ верхней и нижней челюстей + бухты гайморовых пазух.",
+        price: 4500,
+        duration: 30
+      },
+      {
+        name: "КТ 16х14,5",
+        order: 4,
+        description: "КТ верхней и нижней челюстей + гайморовы пазухи (возможен захват суставов - в зависимости от анатомических особенностей).",
+        price: 5500,
+        duration: 30
+      },
+      {
+        name: "КТ ВНЧС",
+        order: 5,
+        description: "КТ височно-нижнечелюстного сустава. Выберите необходимые варианты исследования.",
+        price: 4000,
+        duration: 40,
+        checkboxes: [
+          { label: "в привычной окклюзии", explanation: "Относительное положение зубных рядов при их максимальном контакте." },
+          { label: "с окклюзией на каппе (орторике)", explanation: "Исследование при использовании специальной ортопедической каппы." },
+          { label: "с открытым ртом", explanation: "Необходимо для оценки положения головки сустава при открывании рта." }
+        ]
+      },
+      {
+        name: "ТРГ (бок.)",
+        order: 6,
+        description: "Телерентгенография черепа в боковой проекции.",
+        price: 1800,
+        duration: 15
+      },
+      {
+        name: "ОПТГ",
+        order: 7,
+        description: "Ортопантомография (панорамный снимок) зубных рядов.",
+        price: 1200,
+        duration: 15
+      }
+    ];
+
+    for (const s of list) {
+      await addDoc(collection(db, 'services'), s);
+    }
+    alert("Услуги из списка успешно добавлены!");
+  };
 
   useEffect(() => {
     const qBookings = query(collection(db, 'bookings'), orderBy('timestamp', 'asc'));
@@ -39,7 +107,7 @@ export function AdminView() {
       setBookings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)));
     });
 
-    const qServices = query(collection(db, 'services'));
+    const qServices = query(collection(db, 'services'), orderBy('order', 'asc'));
     const unsubServices = onSnapshot(qServices, (snapshot) => {
       setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service)));
     });
@@ -62,12 +130,14 @@ export function AdminView() {
     if (!newServiceName || !newServicePrice) return;
     await addDoc(collection(db, 'services'), {
       name: newServiceName,
+      order: services.length + 1,
       price: Number(newServicePrice),
       duration: Number(newServiceDuration),
-      description: 'Стандартная процедура'
+      description: newServiceDescription || 'Стандартная процедура'
     });
     setNewServiceName('');
     setNewServicePrice('');
+    setNewServiceDescription('');
   };
 
   const deleteService = async (id: string) => {
@@ -91,6 +161,14 @@ export function AdminView() {
         >
           <ClipboardList size={20} /> Услуги
         </button>
+        {view === 'services' && services.length === 0 && (
+          <button 
+            onClick={seedServices}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-xl font-bold hover:bg-amber-200 transition-all text-xs"
+          >
+            <Plus size={16} /> Добавить стандартный список
+          </button>
+        )}
       </div>
 
       {view === 'bookings' ? (
@@ -123,6 +201,20 @@ export function AdminView() {
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{b.clientName}</div>
                       <div className="text-xs text-slate-500">{b.clientEmail}</div>
+                      {(b as any).notes && (
+                        <div className="text-[10px] bg-amber-50 text-amber-700 p-1 px-2 rounded mt-1 border border-amber-100">
+                          Прим: {(b as any).notes}
+                        </div>
+                      )}
+                      {(b as any).selectedOptions && (b as any).selectedOptions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(b as any).selectedOptions.map((opt: string, i: number) => (
+                            <span key={i} className="text-[8px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-bold">
+                              {opt}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{b.serviceName}</td>
                     <td className="px-6 py-4">
@@ -202,6 +294,15 @@ export function AdminView() {
                   />
                 </div>
               </div>
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">Описание</label>
+                <textarea 
+                  value={newServiceDescription}
+                  onChange={(e) => setNewServiceDescription(e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-blue-500 min-h-[100px]" 
+                  placeholder="Пояснение к услуге..."
+                />
+              </div>
               <button 
                 type="submit"
                 className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 mt-4"
@@ -228,7 +329,20 @@ export function AdminView() {
                 <tbody className="divide-y divide-slate-100">
                   {services.map(s => (
                     <tr key={s.id}>
-                      <td className="px-6 py-4 font-bold text-slate-800">{s.name}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-800">{s.name}</div>
+                        <div className="text-xs text-slate-400 mt-1 max-w-xs">{s.description}</div>
+                        {s.checkboxes && s.checkboxes.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {s.checkboxes.map((cb, idx) => (
+                              <div key={idx} className="flex flex-col gap-0.5 ml-2 border-l-2 border-blue-100 pl-2">
+                                <span className="text-[10px] font-bold text-blue-600">{cb.label}</span>
+                                <span className="text-[9px] text-slate-400 italic leading-none">{cb.explanation}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-blue-600 font-bold">{s.price} ₽</td>
                       <td className="px-6 py-4 text-slate-500 text-sm">{s.duration} мин</td>
                       <td className="px-6 py-4 text-right">
