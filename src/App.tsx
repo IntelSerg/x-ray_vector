@@ -9,6 +9,7 @@ import { ClientView } from './components/ClientView';
 import { AdminView } from './components/AdminView';
 import { motion } from 'motion/react';
 import { Activity, ShieldCheck, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
 
 function LandingPage() {
   const { login } = useAuth();
@@ -57,6 +58,7 @@ function LandingPage() {
 
 function MainContent() {
   const { user, userRole, loading } = useAuth();
+  const [showClientView, setShowClientView] = useState(false);
 
   if (loading) {
     return (
@@ -71,13 +73,43 @@ function MainContent() {
     return <LandingPage />;
   }
 
+  // Admin can toggle view for testing
+  if (userRole === 'admin') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-slate-900 text-white p-3 rounded-2xl flex justify-between items-center shadow-lg px-6 sticky top-4 z-50">
+          <div className="flex items-center gap-2 text-sm font-bold">
+            <ShieldCheck className="text-blue-400" size={18} />
+            Режим администратора
+          </div>
+          <button
+            onClick={() => setShowClientView(!showClientView)}
+            className="text-xs bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-xl font-bold transition-all flex items-center gap-2"
+          >
+            {showClientView ? 'Вернуться в панель управления' : 'Посмотреть как клиент'}
+            <ChevronRight size={14} className={showClientView ? 'rotate-180' : ''} />
+          </button>
+        </div>
+        
+        <motion.div
+          key={showClientView ? 'client' : 'admin'}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          {showClientView ? <ClientView /> : <AdminView />}
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {userRole === 'admin' ? <AdminView /> : <ClientView />}
+      <ClientView />
     </motion.div>
   );
 }

@@ -32,8 +32,21 @@ export function ClientView() {
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
+
+  const addons = [
+    { id: 'desc', label: 'Описание КТ врачом рентгенологом (три рабочих дня)', price: 800 },
+    { id: 'print', label: 'Распечатка зоны интереса', price: 200 },
+    { id: 'email', label: 'Отправка на e-mail', price: 100 }
+  ];
+
+  const totalAddonsPrice = addons
+    .filter(a => selectedAddons.includes(a.id))
+    .reduce((sum, a) => sum + a.price, 0);
+
+  const totalPrice = (selectedService?.price || 0) + totalAddonsPrice;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [qaOpen, setQaOpen] = useState(false);
@@ -70,6 +83,8 @@ export function ClientView() {
         serviceName: selectedService.name,
         timestamp: selectedSlot,
         selectedOptions,
+        selectedAddons: addons.filter(a => selectedAddons.includes(a.id)).map(a => a.label),
+        totalPrice,
         notes,
         clientName: user.displayName,
         clientEmail: user.email,
@@ -186,13 +201,53 @@ export function ClientView() {
                 <Activity className="text-blue-600" size={24} />
                 Тип исследования
               </h2>
+
+              <div className="mb-10 relative overflow-hidden">
+                <div 
+                  className="float-right ml-6 mb-4 w-48 md:w-64 cursor-zoom-in group"
+                  style={{ shapeOutside: 'inset(0% round 1.5rem)', clipPath: 'inset(0% round 1.5rem)' }}
+                >
+                  <img 
+                    src="/fov-guide.png" 
+                    alt="Зоны исследования КТ" 
+                    className="w-full h-auto rounded-3xl border border-slate-100 shadow-sm transition-transform group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/dental-ct-fov/400/400';
+                    }}
+                  />
+                  <p className="text-[9px] text-slate-400 mt-2 uppercase font-bold tracking-widest text-center">
+                    Схема областей FOV
+                  </p>
+                </div>
+                
+                <div className="text-slate-600 leading-relaxed text-sm md:text-base">
+                  <p className="mb-4">
+                    Для проведения качественной диагностики крайне важно правильно определить область исследования (Field of View - FOV). 
+                    Наш кабинет оснащен современным конусно-лучевым компьютерным томографом, который позволяет настраивать размер захвата 
+                    в зависимости от поставленной клинической задачи.
+                  </p>
+                  <p className="mb-4">
+                    Мы предлагаем различные варианты: от локальных снимков <span className="font-bold">5х5 см</span> (для детального изучения 3-5 зубов) 
+                    до полноразмерных снимков <span className="font-bold">16х14,5 см</span>, которые охватывают обе челюсти, гайморовы пазухи 
+                    и височно-нижнечелюстные суставы.
+                  </p>
+                  <p>
+                    Ориентируйтесь на схему справа при выборе типа исследования. Если вы не уверены в выборе, наш 
+                    AI-ассистент или администратор всегда готовы помочь вам определиться с нужным форматом снимка.
+                  </p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {services.length === 0 && <p className="text-slate-400">Загрузка услуг...</p>}
                 {services.map(s => (
                   <button
                     key={s.id}
                     onClick={() => { setSelectedService(s); setStep(2); setSelectedOptions([]); }}
-                    className="flex flex-col text-left p-6 rounded-2xl border-2 border-slate-50 hover:border-blue-500 hover:shadow-lg transition-all group"
+                    className={`flex flex-col text-left p-6 rounded-2xl border-2 border-slate-50 hover:border-blue-500 hover:shadow-lg transition-all group ${
+                      s.name === 'ОПТГ' ? 'md:col-span-2 lg:col-span-1 lg:col-start-2' : ''
+                    }`}
                   >
                     <span className="font-bold text-lg group-hover:text-blue-600 transition-colors">{s.name}</span>
                     <span className="text-slate-500 text-sm mt-2">{s.description}</span>
@@ -304,10 +359,6 @@ export function ClientView() {
                   <span className="text-slate-500">Время</span>
                   <span className="font-bold">{format(parseISO(selectedSlot), 'HH:mm')}</span>
                 </div>
-                <div className="flex justify-between pt-2">
-                  <span className="text-slate-500 font-medium">К оплате (в клинике)</span>
-                  <span className="font-bold text-xl text-blue-600">{selectedService.price} ₽</span>
-                </div>
               </div>
 
               <div className="mt-8">
@@ -320,7 +371,40 @@ export function ClientView() {
                 />
               </div>
 
-              <div className="mt-10 flex flex-col gap-4">
+              <div className="mt-8 bg-blue-50/50 p-6 rounded-3xl border border-blue-100">
+                <h3 className="text-[10px] font-black text-blue-900 mb-4 uppercase tracking-[0.2em]">Выберите дополнительные услуги</h3>
+                <div className="space-y-3">
+                  {addons.map(addon => (
+                    <label key={addon.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer hover:border-blue-300 transition-colors shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="checkbox"
+                          checked={selectedAddons.includes(addon.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedAddons([...selectedAddons, addon.id]);
+                            else setSelectedAddons(selectedAddons.filter(id => id !== addon.id));
+                          }}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-slate-700">{addon.label}</span>
+                      </div>
+                      <span className="text-xs font-bold text-blue-600">+{addon.price} ₽</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none mb-1">К оплате</span>
+                  <span className="text-[10px] text-slate-500 font-bold">(в кабинете)</span>
+                </div>
+                <div className="text-4xl font-black text-blue-600 tracking-tighter">
+                  {totalPrice} ₽
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-col gap-4">
                 <button
                   onClick={handleBooking}
                   disabled={loading}
@@ -353,6 +437,7 @@ export function ClientView() {
                   setSelectedSlot(null); 
                   setNotes('');
                   setSelectedOptions([]);
+                  setSelectedAddons([]);
                 }}
                 className="text-blue-600 font-bold hover:underline"
               >

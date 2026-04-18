@@ -216,7 +216,21 @@ export function AdminView() {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-slate-600 font-medium">{b.serviceName}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-600 font-medium">{b.serviceName}</div>
+                      {(b as any).totalPrice && (
+                        <div className="text-blue-600 font-black text-sm mt-1">{(b as any).totalPrice} ₽</div>
+                      )}
+                      {(b as any).selectedAddons && (b as any).selectedAddons.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {(b as any).selectedAddons.map((addon: string, i: number) => (
+                            <div key={i} className="text-[9px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded leading-tight">
+                              + {addon}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-700">{format(parseISO(b.timestamp), 'd MMM, HH:mm', { locale: ru })}</div>
                     </td>
