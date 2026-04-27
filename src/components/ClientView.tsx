@@ -405,6 +405,14 @@ export function ClientView() {
               </div>
 
               <div className="mt-8 flex flex-col gap-4">
+                <div className="text-[11px] text-slate-500 leading-relaxed text-center px-2">
+                  Подтверждая запись, вы соглашаетесь с{' '}
+                  <a href="#" className="text-blue-600 hover:underline">Политикой обработки персональных данных</a>, 
+                  даете{' '}
+                  <a href="#" className="text-blue-600 hover:underline">Согласие на обработку персональных данных</a> 
+                  {' '}и{' '}
+                  <a href="#" className="text-blue-600 hover:underline">Согласие на получение уведомлений, результатов исследований и рекламных материалов</a>
+                </div>
                 <button
                   onClick={handleBooking}
                   disabled={loading}
